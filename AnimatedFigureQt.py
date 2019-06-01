@@ -46,11 +46,10 @@ class AnimatedFigure(QtGui.QApplication):
         self.win = pg.GraphicsWindow()
         self.axes = [None] * self.num_plots
         self.curves = [[None for _ in y[1:]] for y in init_data]
-        for i, (xy_data, plot_samples) in enumerate(zip(init_data, self.plot_samples)):
+
+        # Workaround to be able to add labels before calling the animate() method
+        for i, plot in enumerate(self.curves):
             self.axes[i] = self.win.addPlot()
-            for j, y_data in enumerate(xy_data[1:]):
-                self.curves[i][j] = self.axes[i].plot(pen=pg.mkPen(color=j, width=3))
-        self.thread = Thread(self.data_function, self.update, self.interval)
 
     @QtCore.Slot(np.ndarray)
     def update(self, data):
@@ -69,5 +68,12 @@ class AnimatedFigure(QtGui.QApplication):
                 self.curves[i][j].setData(x=x, y=y)
 
     def animate(self):
+        # Workaround to be able to add labels before calling the animate() method
+        for i, plot in enumerate(self.curves):
+            if len(plot) > 1:
+                self.axes[i].addLegend()
+            for j, curve in enumerate(plot):
+                self.curves[i][j] = self.axes[i].plot(pen=pg.mkPen(color=j, width=3), name=self.curves[i][j])
+        self.thread = Thread(self.data_function, self.update, self.interval)
         self.thread.start()
         self.exec_()
