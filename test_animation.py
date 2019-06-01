@@ -1,7 +1,14 @@
+# Set library to use
+lib = "matplotlib"      # change to "qt" to test that version
+
 # Imports
 import numpy as np
 from collections import deque
-from AnimatedFigure import AnimatedFigure
+
+if lib == "matplotlib":
+    from AnimatedFigure import AnimatedFigure
+else:
+    from AnimatedFigureQt import AnimatedFigure
 
 
 # Must return a list of tuples for every desired plot
@@ -25,26 +32,29 @@ cos2 = deque([], maxlen=n_pts)
 
 buffers = [t, cos, sin, sin2, cos2]
 
+an = AnimatedFigure(update_function, plot_samples=n_pts, interval=1)
 # create animation object
-an = AnimatedFigure(update_function, plot_samples=n_pts, interval=1, debug=True)
+if lib == "matplotlib":
 
-# label plots
-axes = an.axes
-axes[0].set_title('cos(t)')
-axes[0].set_xlabel('Time (s)')
-axes[0].set_ylabel('Amplitude')
+    # label plots
+    axes = an.axes
+    axes[0].set_title('cos(t)')
+    axes[0].set_xlabel('Time (s)')
+    axes[0].set_ylabel('Amplitude')
 
-axes[1].set_title('sin(t)')
-axes[1].set_ylabel('Amplitude')
-axes[1].set_xlabel('Time (s)')
+    axes[1].set_title('sin(t)')
+    axes[1].set_ylabel('Amplitude')
+    axes[1].set_xlabel('Time (s)')
 
-axes[2].set_title('sin**2(t)')
-axes[2].set_ylabel('Amplitude Squared')
-axes[2].set_xlabel('Time (s)')
+    axes[2].set_title('sin**2(t)')
+    axes[2].set_ylabel('Amplitude Squared')
+    axes[2].set_xlabel('Time (s)')
 
-axes[3].set_title('cos**2(t)')
-axes[3].set_ylabel('Amplitude Squared')
-axes[3].set_xlabel('Time (s)')
+    axes[3].set_title('cos**2(t)')
+    axes[3].set_ylabel('Amplitude Squared')
+    axes[3].set_xlabel('Time (s)')
+else:
+    pass
 
 # begin animation
 an.animate()
