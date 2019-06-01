@@ -37,16 +37,22 @@ class AnimatedFigure:
         self.debug = debug
         # initialize figure
         self.interval = interval
-        self.plot_samples = plot_samples
         self.data_function = data_function
         init_data = self.data_function(0)
         self.num_plots = len(init_data)
+        try:
+            if len(plot_samples) > 1:
+                assert self.num_plots == len(plot_samples), \
+                    f"Size of plot_samples is {len(plot_samples)} while data_function signature is {self.num_plots}."
+                self.plot_samples = plot_samples
+        except TypeError:
+            self.plot_samples = [plot_samples for _ in range(self.num_plots)]
         # make copies to avoid overwriting mutable objects
         initial_plot_data = []
-        for y_data in init_data:
+        for xy_data, plot_samples in zip(init_data, self.plot_samples):
             sublist = []
-            for y in y_data[1:]:
-                new_line = np.zeros(self.plot_samples)
+            for y_data in xy_data[1:]:
+                new_line = np.zeros(plot_samples)
                 sublist.append(new_line)
             initial_plot_data.append(sublist)
         self.fig = plt.figure()
@@ -66,6 +72,49 @@ class AnimatedFigure:
         plt.tight_layout()
         self.ani = None  # placeholder for animation object
 
+    def _update_x_labels(self, ax, x, plot_samples):
+        """
+        Rescale/relabel x axis.
+        Number and location of ticks is left to be auto determined, we just change the labels.
+        :return: boolean indicating if redraw is necessary.
+        """
+        # If there are enough x-data points, update the x-axis labels
+        if len(x) >= plot_samples:
+            x_ticks = ax.get_xticks()
+            x_tick_labels = [item.get_text() for item in ax.get_xticklabels() if len(item.get_text()) > 0]
+            new_labels = [float(f'{x:1.1}') for x in x_ticks / plot_samples * (x[-1] - x[0])]
+            if new_labels[0] != float(x_tick_labels[0].replace(u'\u2212', '-'))\
+                    or new_labels[-1] != float(x_tick_labels[-1].replace(u'\u2212', '-')):
+                ax.set_xticklabels(new_labels)
+                return True
+        return False
+
+    def _update_y_labels(self, ax, y_points):
+        """
+        Rescale/relabel y axis. We don't use auto-scaling since that can cause hysteresis and unnecessary draws.
+        :param y_data: aggregate of all y data on plat (i.e. join all y data)
+        :return: boolean indicating if redraw is necessary.
+        """
+        # check if data is out of range of axis, if so force y-axis to update
+        y_valid = np.array([val for val in [y_point for y_list in y_points for y_point in y_list]
+                            if val is not None and not np.isnan(val)])
+        if len(y_valid) >= 2:
+            old_ymin, old_ymax = ax.get_ylim()
+            data_min, data_max = np.min(y_valid), np.max(y_valid)
+            data_range = data_max - data_min
+            new_max_lim = data_max + data_range * 0.1
+            new_min_lim = data_min - data_range * 0.1
+            if new_max_lim == new_min_lim:
+                new_max_lim = data_max + .1  # ensures if the line is constant axis are still scaled
+                new_min_lim = data_min - .1  # ensures if the line is constant axis are still scaled
+            if not ((.85 < old_ymax / new_max_lim < 1.15) and (.85 < old_ymin / new_min_lim < 1.15)):
+                new_labels = [float(f'{num:1.1}') for num in
+                              np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
+                ax.set_ylim(bottom=new_min_lim, top=new_max_lim)
+                ax.set_yticks(new_labels)
+                return True
+        return False
+
     def update_plots(self, idx):
         """
         Updates the live-plots based on new data collected.
@@ -74,80 +123,41 @@ class AnimatedFigure:
         :param idx: required parameter by FuncAnimation. It is not used.
         :return: list of objects (axis) updated.
         """
-        def _update_x_labels():
-            """
-            Rescale/relabel x axis.
-            Number and location of ticks is left to be auto determined, we just change the labels.
-            :return: boolean indicating if redraw is necessary.
-            """
-            # If there are enough x-data points, update the x-axis labels
-            if len(x) >= self.plot_samples:
-                x_ticks = ax.get_xticks()
-                x_tick_labels = [item.get_text() for item in ax.get_xticklabels() if len(item.get_text()) > 0]
-                new_labels = [float(f'{x:1.1}') for x in x_ticks / self.plot_samples * (x[-1] - x[0])]
-                if new_labels[0] != float(x_tick_labels[0].replace(u'\u2212', '-')) or new_labels[-1] != float(
-                        x_tick_labels[-1].replace(u'\u2212', '-')):
-                    ax.set_xticklabels(new_labels)
-                    return True
-            return False
-
-        def _update_y_labels():
-            """
-            Rescale/relabel y axis. We don't use auto-scaling since that can cause hysteresis and unnecessary draws.
-            :param y_data: aggregate of all y data on plat (i.e. join all y data)
-            :return: boolean indicating if redraw is necessary.
-            """
-            # check if data is out of range of axis, if so force y-axis to update
-            y_valid = np.array([val for val in [y_point for y_list in y_points for y_point in y_list]
-                               if val is not None and not np.isnan(val)])
-            if len(y_valid) >= 2:
-                old_ymin, old_ymax = ax.get_ylim()
-                data_min, data_max = np.min(y_valid), np.max(y_valid)
-                data_range = data_max - data_min
-                new_max_lim = data_max + data_range * 0.1
-                new_min_lim = data_min - data_range * 0.1
-                if new_max_lim == new_min_lim:
-                    new_max_lim = data_max + .1  # ensures if the line is constant axis are still scaled
-                    new_min_lim = data_min - .1  # ensures if the line is constant axis are still scaled
-                if not ((.9 < old_ymax / new_max_lim < 1.1) and (.9 < old_ymin / new_min_lim < 1.1)):
-                    new_labels = [float(f'{num:1.1}') for num in
-                                  np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
-                    ax.set_ylim(bottom=new_min_lim, top=new_max_lim)
-                    ax.set_yticks(new_labels)
-                    return True
-            return False
 
         self.fps()
+        redraw = False
 
         data = self.data_function(idx)  # data_function must return a tuple containing lists of x,y data
 
-        for plot_num, (ax, (x, *y_points)) in enumerate(zip(self.axes, data)):
+        for plot_num, (ax, plot_samples, (x, *y_points)) in enumerate(zip(self.axes, self.plot_samples, data)):
 
             # Get length of data
             # Assumes all y data within a subplot is of the same length
             y_lengths = [len(y) for y in y_points]
             assert np.count_nonzero(np.diff(y_lengths)) == 0, "y data must all be of same length within a subplot."
-            y_len = min(y_lengths[0], self.plot_samples)
+            y_len = min(y_lengths[0], plot_samples)
 
             # Slice the data to the right number of samples
-            y_points = [list(itertools.islice(y, self.plot_samples)) for y in y_points]
+            y_points = [list(itertools.islice(y, max(len(y) - plot_samples, plot_samples))) for y in y_points]
             # Slice first, convert to list later.
             # This is faster and uses less memory if the iterable is a long non-slicable object (ex: deque)
             # A list is needed because we need to know the length.
 
             # Do the actual updating of the data, depending on blitting setting
-            len_dif = self.plot_samples - y_len
+            len_dif = plot_samples - y_len
             if len_dif > 0:
                 y_points = [list(itertools.chain((np.nan for _ in range(len_dif)), y)) for y in y_points]
                 # This way we can accept any iterable as y
             for line, y in zip(self.live_plot[plot_num], y_points):
                 line.set_ydata(y)
 
-            if idx % (self.plot_samples / 2) == 0 and idx > 10:
+            if idx % (plot_samples / 2) == 0 and idx > 10:
                 # Only check every couple frames for speed
                 # Labels will not update properly on the first couple frames, skip them
-                if _update_x_labels() or _update_y_labels():
-                    self.fig.canvas.draw_idle()
+                if self._update_x_labels(ax, x, plot_samples) or self._update_y_labels(ax, y_points):
+                    redraw = True
+        if redraw:
+            self.fig.canvas.draw_idle()
 
         return [line for plot in self.live_plot for line in plot]
 
