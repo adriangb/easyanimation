@@ -13,7 +13,7 @@ except:
 import numpy as np
 from matplotlib import animation
 from matplotlib import pyplot as plt
-
+import itertools
 import time
 
 
@@ -91,22 +91,24 @@ class AnimatedFigure:
                     return True
             return False
 
-        def _update_y_labels(y_data):
+        def _update_y_labels():
             """
             Rescale/relabel y axis. We don't use auto-scaling since that can cause hysteresis and unnecessary draws.
             :param y_data: aggregate of all y data on plat (i.e. join all y data)
             :return: boolean indicating if redraw is necessary.
             """
             # check if data is out of range of axis, if so force y-axis to update
-            y_valid = [val for val in y_data if val is not None and not np.isnan(val)]
+            y_valid = np.array([val for val in [y_point for y_list in y_points for y_point in y_list]
+                               if val is not None and not np.isnan(val)])
             if len(y_valid) >= 2:
                 old_ymin, old_ymax = ax.get_ylim()
-                data_range = np.nanmax(y_valid) - np.nanmin(y_valid)
-                new_max_lim = np.nanmax(y_valid) + data_range * 0.1
-                new_min_lim = np.nanmin(y_valid) - data_range * 0.1
+                data_min, data_max = np.min(y_valid), np.max(y_valid)
+                data_range = data_max - data_min
+                new_max_lim = data_max + data_range * 0.1
+                new_min_lim = data_min - data_range * 0.1
                 if new_max_lim == new_min_lim:
-                    new_max_lim = np.nanmax(y_valid) + .1  # ensures if the line is constant axis are still scaled
-                    new_min_lim = np.nanmin(y_valid) - .1  # ensures if the line is constant axis are still scaled
+                    new_max_lim = data_max + .1  # ensures if the line is constant axis are still scaled
+                    new_min_lim = data_min - .1  # ensures if the line is constant axis are still scaled
                 if not ((.9 < old_ymax / new_max_lim < 1.1) and (.9 < old_ymin / new_min_lim < 1.1)):
                     new_labels = [float(f'{num:1.1}') for num in
                                   np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
@@ -121,13 +123,22 @@ class AnimatedFigure:
 
         for plot_num, (ax, (x, *y_points)) in enumerate(zip(self.axes, data)):
 
+            # Get length of data
+            # Assumes all y data within a subplot is of the same length
+            y_lengths = [len(y) for y in y_points]
+            assert np.count_nonzero(np.diff(y_lengths)) == 0, "y data must all be of same length within a subplot."
+            y_len = min(y_lengths[0], self.plot_samples)
+
             # Slice the data to the right number of samples
-            y_points = [y[-self.plot_samples:] for y in y_points]
+            y_points = [list(itertools.islice(y, self.plot_samples)) for y in y_points]
+            # Slice first, convert to list later.
+            # This is faster and uses less memory if the iterable is a long non-slicable object (ex: deque)
+            # A list is needed because we need to know the length.
 
             # Do the actual updating of the data, depending on blitting setting
-            len_dif = self.plot_samples - len(y_points[0])
+            len_dif = self.plot_samples - y_len
             if len_dif > 0:
-                y_points = [np.append(np.repeat(np.nan, repeats=len_dif), y) for y in y_points]
+                y_points = [list(itertools.chain((np.nan for _ in range(len_dif)), y)) for y in y_points]
                 # This way we can accept any iterable as y
             for line, y in zip(self.live_plot[plot_num], y_points):
                 line.set_ydata(y)
@@ -135,7 +146,7 @@ class AnimatedFigure:
             if idx % (self.plot_samples / 2) == 0 and idx > 10:
                 # Only check every couple frames for speed
                 # Labels will not update properly on the first couple frames, skip them
-                if _update_x_labels() or _update_y_labels(y_data=[y_point for y_list in y_points for y_point in y_list]):
+                if _update_x_labels() or _update_y_labels():
                     self.fig.canvas.draw_idle()
 
         return [line for plot in self.live_plot for line in plot]
