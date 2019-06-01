@@ -26,7 +26,7 @@ class Thread(QtCore.QThread):
 class AnimatedFigure(QtGui.QApplication):
     def __init__(self, data_function, plot_samples, interval=1):
         super(AnimatedFigure, self).__init__([])
-        # sys.stderr = object
+        # sys.stderr = object       # Can be used to disable unimportant errors / warnings
 
         # get data updating function & initialize plot params
         self.interval = interval
@@ -55,9 +55,17 @@ class AnimatedFigure(QtGui.QApplication):
     @QtCore.Slot(np.ndarray)
     def update(self, data):
         for i, (plot_data, plot_samples) in enumerate(zip(data, self.plot_samples)):
-            x = list(itertools.islice(plot_data[0], max(len(plot_data[0]) - plot_samples, 0), None))
             for j, y_data in enumerate(plot_data[1:]):
+                x = list(itertools.islice(plot_data[0], max(len(plot_data[0]) - plot_samples, 0), None))
+                # Note that computing x 1 time would be more efficient, but because of timing issues this can lead
+                # to a mismatch between len(x) and len(y)
                 y = list(itertools.islice(y_data, max(len(y_data) - plot_samples, 0), None))
+                if len(x) != len(y):
+                    # Debug code to catch length difference issues, may be system dependant
+                    print(f"lens of orig: {len(plot_data[0])}, {len(y_data)}")
+                    print(f"lens of sliced: {len(x)}, {len(y)}")
+                    print(f"lens of slice start: "
+                          f"{max(len(plot_data[0]) - plot_samples, 0)}, {max(len(y_data) - plot_samples, 0)}")
                 self.curves[i][j].setData(x=x, y=y)
 
     def animate(self):
