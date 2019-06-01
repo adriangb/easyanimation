@@ -26,7 +26,7 @@ class Thread(QtCore.QThread):
 class AnimatedFigure(QtGui.QApplication):
     def __init__(self, data_function, plot_samples, interval=1):
         super(AnimatedFigure, self).__init__([])
-        sys.stderr = object
+        # sys.stderr = object
 
         # get data updating function & initialize plot params
         self.interval = interval
@@ -42,21 +42,23 @@ class AnimatedFigure(QtGui.QApplication):
             self.plot_samples = [plot_samples for _ in range(self.num_plots)]
 
         # initialize plots
+        pg.setConfigOption('background', 'w')
         self.win = pg.GraphicsWindow()
-        self.plots = [None]*self.num_plots
+        self.axes = [None] * self.num_plots
         self.curves = [[None for _ in y[1:]] for y in init_data]
         for i, (xy_data, plot_samples) in enumerate(zip(init_data, self.plot_samples)):
-            self.plots[i] = self.win.addPlot()
+            self.axes[i] = self.win.addPlot()
             for j, y_data in enumerate(xy_data[1:]):
-                self.curves[i][j] = self.plots[i].plot()
+                self.curves[i][j] = self.axes[i].plot(pen=pg.mkPen(color=j, width=3))
         self.thread = Thread(self.data_function, self.update, self.interval)
 
     @QtCore.Slot(np.ndarray)
     def update(self, data):
         for i, (plot_data, plot_samples) in enumerate(zip(data, self.plot_samples)):
+            x = list(itertools.islice(plot_data[0], max(len(plot_data[0]) - plot_samples, 0), None))
             for j, y_data in enumerate(plot_data[1:]):
-                y = list(itertools.islice(y_data, max(len(y_data) - plot_samples, plot_samples)))
-                self.curves[i][j].setData(y)
+                y = list(itertools.islice(y_data, max(len(y_data) - plot_samples, 0), None))
+                self.curves[i][j].setData(x=x, y=y)
 
     def animate(self):
         self.thread.start()

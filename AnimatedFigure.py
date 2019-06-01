@@ -138,7 +138,7 @@ class AnimatedFigure:
             y_len = min(y_lengths[0], plot_samples)
 
             # Slice the data to the right number of samples
-            y_points = [list(itertools.islice(y, max(len(y) - plot_samples, plot_samples))) for y in y_points]
+            y_points = [list(itertools.islice(y, max(len(y) - plot_samples, 0), None)) for y in y_points]
             # Slice first, convert to list later.
             # This is faster and uses less memory if the iterable is a long non-slicable object (ex: deque)
             # A list is needed because we need to know the length.
