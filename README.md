@@ -1,17 +1,18 @@
 # easy_animation
 ## Wrapper for matplotlib FuncAnimation to simplify axis rescaling, subplots, multiple lines.
 While developing teching code at UCSD, I noticed that live-plotting data in matplotlib can be done in one of three ways:
-(1) Using iteration, manually calling commands to re-plot data.
-(2) Using the matplotlib.animation module _without_ blitting (axis will rescale etc.)
-(3) Using the matplotlib.animation module _with_ blitting (axis will NOT rescale etc.)
 
-(1) Is very easy to write and supports dynamic anything (titles, labels, scaling, etc.). This works fine for data at <10Hz, but is incredibly slow and resource intensive for anything above this.
-(2) This automatically handles timing and some other details, but adds a good amount of complexity. Without blitting, not much speed is gained over the iterative approach. As soon as the animation module is introduced instead of manual redrawing, compatibility with IPython is broken, and at least in Spyder the whole kernel crashes on closing plots (I'm guessing some type of loop in which the animation is now calling a dead plot).
-(3) Here the complexity is greatest and flexibility minimal. For example, if you are live plotting sensor data that varies over a couple orders of magnitude, you would have to hardcode your axis limits and either not see the data or have it cut off. All of the issues present in (2) also apply. However, this method can plot multiple subplots at 100+ fps. Not quite as fast as using Qt directly but a lot more user friendly since the most of the syntax is good old matplotlib.
+1. Using iteration, manually calling commands to re-plot data.
+2. Using the matplotlib.animation module _without_ blitting (axis will rescale etc.)
+3. Using the matplotlib.animation module _with_ blitting (axis will NOT rescale etc.)
+
+1. Is very easy to write and supports dynamic anything (titles, labels, scaling, etc.). This works fine for data at <10Hz, but is incredibly slow and resource intensive for anything above this.
+2. This automatically handles timing and some other details, but adds a good amount of complexity. Without blitting, not much speed is gained over the iterative approach. As soon as the animation module is introduced instead of manual redrawing, compatibility with IPython is broken, and at least in Spyder the whole kernel crashes on closing plots (I'm guessing some type of loop in which the animation is now calling a dead plot).
+3. Here the complexity is greatest and flexibility minimal. For example, if you are live plotting sensor data that varies over a couple orders of magnitude, you would have to hardcode your axis limits and either not see the data or have it cut off. All of the issues present in (2) also apply. However, this method can plot multiple subplots at 100+ fps. Not quite as fast as using Qt directly but a lot more user friendly since the most of the syntax is good old matplotlib.
 
 The goal of this project was to take option (3) and do two things:
-(a) Reduce the complexity by auto-generating and auto-updating plots based on the signature of the data generating function.
-(b) Enable basic dynamic axis resizing. This is done by using generous hysterisis thersholds and only allowing resizing every couple frames.
+1. Reduce the complexity by auto-generating and auto-updating plots based on the signature of the data generating function.
+2. Enable basic dynamic axis resizing. This is done by using generous hysterisis thersholds and only allowing resizing every couple frames.
 
 The usage can be seen in test_animation.py. The basic idea is that you create a function that accepts a frame number argument and returns a nested iterable containing the data. Ex:
 ```python
