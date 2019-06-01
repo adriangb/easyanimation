@@ -35,3 +35,16 @@ Finally, you call ```an.animate()``` to start the plotting.
 When you close the figure, a ```KeyboardInterrupt``` is raised. This way, you can handle plot closing in the same way you would handle a Ctrl+C (both signify the user is saying stop the current task, move on or quit). You could also quit the live plot by calling an.stop() at some specific frame number or other condition.
 
 For IPython, the backend is auto-switched to TKinter for live plotting and then reset to inline once the live plot is closed.
+
+You'll also notice that the entire figure is redrawn to update the axis. While this does have a performance hit, it isn't large since it should not be happening too often. In order to blit the axis tick labels for the specific axis on the specific subplot that needs to be updated we would have to modify the animation module to correctly get the bbox, which is not trivial for text due to the way it is rendered in matplotlib. Thus, the easier method is to redraw the whole figure.
+
+Okay you made it this far. Maybe you tried this and it was still too slow? Here's an alternative Qt based solution:
+First, install stuff:
+```bash
+pip install Pyside2
+git clone https://github.com/pyqtgraph/pyqtgraph.git
+cd pyqtgraph
+git checkout develop
+sudo python setup.py install
+```
+Then, in test_animation.py change backend to "qt"
