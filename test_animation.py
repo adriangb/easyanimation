@@ -3,12 +3,12 @@ import numpy as np
 from collections import deque
 
 # Set library to use
-lib = "matplotlib"      # change to "qt" to test that version
+lib = "qt"      # change to "qt" to test that version
 
 if lib == "matplotlib":
-    from AnimatedFigure import AnimatedFigure
+    from src.AnimatedFigure import AnimatedFigure
 else:
-    from AnimatedFigureQt import AnimatedFigure
+    from src.AnimatedFigureQt import AnimatedFigure
 
 
 # Must return a list of tuples for every desired plot
