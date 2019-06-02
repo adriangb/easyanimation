@@ -1,10 +1,20 @@
 # easy_animation
 ## Wrapper for matplotlib FuncAnimation to simplify axis rescaling, subplots, multiple lines.
-While developing teching code at UCSD, I noticed that live-plotting data in matplotlib can be done in one of three ways:
+
+## How to use
+1. Git clone this repo ```git clone https://github.com/adriangb/easy_animation.git```
+2. `cd` to the folder where you cloned it.
+3. Run ```pipenv install```
+4. Run the test file: ```pipenv run python test_animation.py```
+
+## Background
+I noticed that live-plotting data in matplotlib can be done in one of three ways:
 
 1. Using iteration, manually calling commands to re-plot data.
 2. Using the matplotlib.animation module _without_ blitting (axis will rescale etc.)
 3. Using the matplotlib.animation module _with_ blitting (axis will NOT rescale etc.)
+
+There are pros and cons to each:
 
 1. Is very easy to write and supports dynamic anything (titles, labels, scaling, etc.). This works fine for data at <10Hz, but is incredibly slow and resource intensive for anything above this.
 2. This automatically handles timing and some other details, but adds a good amount of complexity. Without blitting, not much speed is gained over the iterative approach. As soon as the animation module is introduced instead of manual redrawing, compatibility with IPython inline plotting is broken, and at least in Spyder the whole kernel crashes on closing plots (I'm guessing some type of loop in which the animation is now calling a dead plot).
@@ -40,12 +50,7 @@ For IPython, the backend is auto-switched to TKinter for live plotting and then 
 You'll also notice that the entire figure is redrawn to update the axis. While this does have a performance hit, it isn't large since it should not be happening too often. In order to blit the axis tick labels for the specific axis on the specific subplot that needs to be updated we would have to modify the animation module to correctly get the bbox, which is not trivial for text due to the way it is rendered in matplotlib. Thus, the easier method is to redraw the whole figure.
 
 Okay you made it this far. Maybe you tried this and it was still too slow? Here's an alternative Qt based solution:
-First, install stuff:
-```bash
-pip install Pyside2
-git clone https://github.com/pyqtgraph/pyqtgraph.git
-cd pyqtgraph
-git checkout develop
-sudo python setup.py install
-```
-Then, in test_animation.py change backend to "qt"
+
+In test_animation.py change backend to "qt".
+
+You will need to have the dev build of pyqtgraph. The pipfile should take care of this.
