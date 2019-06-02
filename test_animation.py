@@ -3,7 +3,7 @@ import numpy as np
 from collections import deque
 
 # Set library to use
-lib = "matplotlib"      # change to "qt" to test that version
+lib = "qt"      # change to "qt" to test that version
 
 if lib == "matplotlib":
     from src.AnimatedFigure import AnimatedFigure
