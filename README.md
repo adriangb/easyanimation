@@ -1,4 +1,4 @@
-# easy_animation
+# EasyAnimation
 ## Wrapper for matplotlib FuncAnimation to simplify axis rescaling, subplots, multiple lines.
 
 ## How to use
