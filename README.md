@@ -53,4 +53,4 @@ Okay you made it this far. Maybe you tried this and it was still too slow? Here'
 
 In test_animation.py change backend to "qt".
 
-You will need to have the dev build of pyqtgraph. The pipfile should take care of this.
+You will need to have the dev build of pyqtgraph. The setup.py or pipfile should take care of this.
