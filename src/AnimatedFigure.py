@@ -44,6 +44,7 @@ class AnimatedFigure:
             if len(plot_samples) > 1:
                 assert self.num_plots == len(plot_samples), \
                     f"Size of plot_samples is {len(plot_samples)} while data_function signature is {self.num_plots}."
+                assert all([True if plot_sample > 1 else False for plot_sample in plot_samples]), "plot_samples must be >1"
                 self.plot_samples = plot_samples
         except TypeError:
             self.plot_samples = [plot_samples for _ in range(self.num_plots)]
@@ -139,6 +140,7 @@ class AnimatedFigure:
 
             # Slice the data to the right number of samples
             y_points = [list(itertools.islice(y, max(len(y) - plot_samples, 0), None)) for y in y_points]
+            x = list(itertools.islice(x, max(len(x) - plot_samples, 0), None))
             # Slice first, convert to list later.
             # This is faster and uses less memory if the iterable is a long non-slicable object (ex: deque)
             # A list is needed because we need to know the length.
@@ -180,13 +182,14 @@ class AnimatedFigure:
         :return: None
         """
         # instantiate animation
-        self.ani = animation.FuncAnimation(
-            fig=self.axes[0].figure, func=self.update_plots, interval=self.interval, blit=True)
+        self.ani = animation.FuncAnimation(fig=self.axes[0].figure, func=self.update_plots,
+                                           interval=self.interval, blit=True, frames=itertools.count(start=1))
         plt.show(block=True)
         return
 
     def stop(self, _):
-        self.ani.event_source.stop()
+        if self.ani:
+            self.ani.event_source.stop()
         try:
             import IPython
             shell = IPython.get_ipython()
@@ -194,7 +197,11 @@ class AnimatedFigure:
         except (ModuleNotFoundError, ImportError):
             print("Unable to reset graphics backend")
             # This is not a deal breaker and would be normal if the class is used in a Python console
-        raise KeyboardInterrupt
+        finally:
+            plt.close(self.fig)
 
     def exception_handler(self, exc, val, tb):
+        """
+        Used to stop the graphics backend from swallowing errors.
+        """
         raise exc
