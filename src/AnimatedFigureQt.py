@@ -2,32 +2,42 @@ from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 import itertools
 import numpy as np
-import sys
-
 
 class Thread(QtCore.QThread):
     dataChanged = QtCore.Signal(np.ndarray)
 
-    def __init__(self, data_function, plot_fun, interval, *args, **kwargs):
+    def __init__(self, close_fun, data_function, plot_fun, interval, *args, **kwargs):
         super(Thread, self).__init__(*args, **kwargs)
         self.idx = 1
         self.data_function = data_function
         self.dataChanged.connect(plot_fun)
         self.interval = interval
+        self.stop_parent = close_fun
 
     def run(self):
-        while True:
-            data= self.data_function(self.idx)
-            self.dataChanged.emit(data)
-            self.idx += 1
-            QtCore.QThread.msleep(self.interval)
+        self.threadactive = True
+        while self.threadactive:
+            try:
+                data = self.data_function(self.idx)
+                self.dataChanged.emit(data)
+                self.idx += 1
+                QtCore.QThread.msleep(self.interval)
+            except StopIteration:
+                self.stop()
+                break
+
+    def stop(self):
+        self.threadactive = False
+        self.stop_parent(None)
+        self.wait()
 
 
-class AnimatedFigure(QtGui.QApplication):
+class AnimatedFigure(object):
     def __init__(self, data_function, plot_samples, interval=1):
-        super(AnimatedFigure, self).__init__([])
         # sys.stderr = object       # Can be used to disable unimportant errors / warnings
-
+        self.app = QtGui.QApplication.instance()
+        if self.app is None:
+            self.app = QtGui.QApplication([])
         # get data updating function & initialize plot params
         self.interval = interval
         self.data_function = data_function
@@ -48,7 +58,7 @@ class AnimatedFigure(QtGui.QApplication):
         self.curves = [[None for _ in y[1:]] for y in init_data]
 
         # Workaround to be able to add labels before calling the animate() method
-        for i, plot in enumerate(self.curves):
+        for i in range(self.num_plots):
             self.axes[i] = self.win.addPlot()
 
     @QtCore.Slot(np.ndarray)
@@ -73,7 +83,15 @@ class AnimatedFigure(QtGui.QApplication):
             if len(plot) > 1:
                 self.axes[i].addLegend()
             for j, curve in enumerate(plot):
+                if self.curves[i][j] is None:
+                    self.curves[i][j] = f"Curve {j}"
                 self.curves[i][j] = self.axes[i].plot(pen=pg.mkPen(color=j, width=3), name=self.curves[i][j])
-        self.thread = Thread(self.data_function, self.update, self.interval)
+        self.thread = Thread(self.stop, self.data_function, self.update, self.interval)
         self.thread.start()
-        self.exec_()
+        self.app.exec_()
+
+    def stop(self, _):
+        self.app.closeAllWindows()
+
+
+
