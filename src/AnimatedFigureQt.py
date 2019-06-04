@@ -52,8 +52,8 @@ class AnimatedFigure(object):
             self.plot_samples = [plot_samples for _ in range(self.num_plots)]
 
         # initialize plots
-        pg.setConfigOption('background', 'w')
-        self.win = pg.GraphicsWindow()
+        self.win = pg.GraphicsLayoutWidget(show=True)
+        self.win.setBackground('w')
         self.axes = [None] * self.num_plots
         self.curves = [[None for _ in y[1:]] for y in init_data]
 
