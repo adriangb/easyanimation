@@ -2,11 +2,11 @@
 import matplotlib
 
 try:
+    # Switch graphics backend to TkAgg to be able to function in IPython
     matplotlib.use('TkAgg')
-    print("Switched graphics backend to Tkinter for compatibility.")
 except:
     print("Unable to load TkAgg.")
-    print("Please to go to Tools > Preferences > IPython Console > Graphics and change Backend to \"Tkinter\"")
+    print("If using Spyder: Please to go to Tools > Preferences > IPython Console > Graphics and change Backend to \"Tkinter\"")
     raise
 
 # Imports
@@ -33,7 +33,6 @@ class AnimatedFigure:
         """
         # counter vars for performance monitoring
         self.counter = 0
-        self.timer = 0
         self.debug = debug
         # initialize figure
         self.interval = interval
@@ -52,7 +51,7 @@ class AnimatedFigure:
         initial_plot_data = []
         for xy_data, plot_samples in zip(init_data, self.plot_samples):
             sublist = []
-            for y_data in xy_data[1:]:
+            for _ in xy_data[1:]:
                 new_line = np.zeros(plot_samples)
                 sublist.append(new_line)
             initial_plot_data.append(sublist)
@@ -62,7 +61,7 @@ class AnimatedFigure:
         try:
             self.fig.canvas._master.report_callback_exception = self.exception_handler
         except AttributeError:
-            print("Could not connect plot close callback to KeyBoardInterrupt")
+            print("Could not connect plot close callback")
         self.live_plot = []
         for ax, y_data in zip(self.axes, initial_plot_data):
             sublist = []
@@ -72,6 +71,7 @@ class AnimatedFigure:
             self.live_plot.append(sublist)
         plt.tight_layout()
         self.ani = None  # placeholder for animation object
+        self.timer = time.time()
 
     def _update_x_labels(self, ax, x, plot_samples):
         """
@@ -126,9 +126,14 @@ class AnimatedFigure:
         """
 
         self.fps()
+
         redraw = False
 
-        data = self.data_function(idx)  # data_function must return a tuple containing lists of x,y data
+        try:
+            data = self.data_function(idx)  # data_function must return a tuple containing lists of x,y data
+        except StopIteration:
+            self.stop(None)
+            raise
 
         for plot_num, (ax, plot_samples, (x, *y_points)) in enumerate(zip(self.axes, self.plot_samples, data)):
 
@@ -189,19 +194,27 @@ class AnimatedFigure:
 
     def stop(self, _):
         if self.ani:
-            self.ani.event_source.stop()
+            if self.ani.event_source:
+                self.ani.event_source.stop()
         try:
             import IPython
             shell = IPython.get_ipython()
             shell.enable_matplotlib(gui='inline')
-        except (ModuleNotFoundError, ImportError):
             print("Unable to reset graphics backend")
-            # This is not a deal breaker and would be normal if the class is used in a Python console
+        except (ModuleNotFoundError, ImportError):
+            pass
+            # In this case, this was probably not run in IPython
         finally:
             plt.close(self.fig)
+        return
 
     def exception_handler(self, exc, val, tb):
         """
         Used to stop the graphics backend from swallowing errors.
         """
-        raise exc
+        if exc == StopIteration:
+            # This is an allowable error, it means the data generator function was exhausted
+            # (or the parent wants us to stop).
+            pass
+        else:
+            raise val
