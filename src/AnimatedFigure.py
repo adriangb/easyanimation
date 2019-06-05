@@ -77,13 +77,16 @@ class AnimatedFigure:
         """
         Rescale/relabel x axis.
         Number and location of ticks is left to be auto determined, we just change the labels.
+        :param ax: axis object to updated x axis labels on.
+        :param x: iterable containing current x data. Must be of length plot_samples or greater.
+        :param plot_samples: number of data points that the axis is displaying.
         :return: boolean indicating if redraw is necessary.
         """
         # If there are enough x-data points, update the x-axis labels
         if len(x) >= plot_samples:
             x_ticks = ax.get_xticks()
             x_tick_labels = [item.get_text() for item in ax.get_xticklabels() if len(item.get_text()) > 0]
-            new_labels = [float(f'{x:1.1}') for x in x_ticks / plot_samples * (x[-1] - x[0])]
+            new_labels = [float(f'{x:1.1}') for x in x_ticks / plot_samples * (x[-1] - x[-plot_samples])]
             if new_labels[0] != float(x_tick_labels[0].replace(u'\u2212', '-'))\
                     or new_labels[-1] != float(x_tick_labels[-1].replace(u'\u2212', '-')):
                 ax.set_xticklabels(new_labels)
