@@ -16,6 +16,8 @@ from matplotlib import pyplot as plt
 import itertools
 import time
 
+from src.data_slicer import data_slicer
+
 
 class AnimatedFigure:
 
@@ -99,25 +101,33 @@ class AnimatedFigure:
         :param y_data: aggregate of all y data on plat (i.e. join all y data)
         :return: boolean indicating if redraw is necessary.
         """
+        old_ymin, old_ymax = ax.get_ylim()
+        new_min_lim, new_max_lim = self._calc_y_labels(y_points)
+        if not ((.85 < old_ymax / new_max_lim < 1.15) and (.85 < old_ymin / new_min_lim < 1.15)):
+            new_labels = [float(f'{num:1.1}') for num in
+                          np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
+            ax.set_ylim(bottom=new_min_lim, top=new_max_lim)
+            ax.set_yticks(new_labels)
+            return True
+        return False
+
+    def _calc_y_labels(self, y_points):
         # check if data is out of range of axis, if so force y-axis to update
         y_valid = np.array([val for val in [y_point for y_list in y_points for y_point in y_list]
                             if val is not None and not np.isnan(val)])
         if len(y_valid) >= 2:
-            old_ymin, old_ymax = ax.get_ylim()
             data_min, data_max = np.min(y_valid), np.max(y_valid)
             data_range = data_max - data_min
             new_max_lim = data_max + data_range * 0.1
             new_min_lim = data_min - data_range * 0.1
-            if new_max_lim == new_min_lim:
-                new_max_lim = data_max + .1  # ensures if the line is constant axis are still scaled
-                new_min_lim = data_min - .1  # ensures if the line is constant axis are still scaled
-            if not ((.85 < old_ymax / new_max_lim < 1.15) and (.85 < old_ymin / new_min_lim < 1.15)):
-                new_labels = [float(f'{num:1.1}') for num in
-                              np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
-                ax.set_ylim(bottom=new_min_lim, top=new_max_lim)
-                ax.set_yticks(new_labels)
-                return True
-        return False
+        else:
+            new_min_lim = new_max_lim = np.average(y_valid)
+
+        if new_max_lim == new_min_lim:
+            new_max_lim = new_max_lim + .1  # ensures if the line is constant axis are still scaled
+            new_min_lim = new_max_lim - .1  # ensures if the line is constant axis are still scaled
+
+        return new_min_lim, new_max_lim
 
     def update_plots(self, idx):
         """
@@ -139,25 +149,8 @@ class AnimatedFigure:
             raise
 
         for plot_num, (ax, plot_samples, (x, *y_points)) in enumerate(zip(self.axes, self.plot_samples, data)):
-
-            # Get length of data
-            # Assumes all y data within a subplot is of the same length
-            y_lengths = [len(y) for y in y_points]
-            assert np.count_nonzero(np.diff(y_lengths)) == 0, "y data must all be of same length within a subplot."
-            y_len = min(y_lengths[0], plot_samples)
-
-            # Slice the data to the right number of samples
-            y_points = [list(itertools.islice(y, max(len(y) - plot_samples, 0), None)) for y in y_points]
-            x = list(itertools.islice(x, max(len(x) - plot_samples, 0), None))
-            # Slice first, convert to list later.
-            # This is faster and uses less memory if the iterable is a long non-slicable object (ex: deque)
-            # A list is needed because we need to know the length.
-
-            # Do the actual updating of the data, depending on blitting setting
-            len_dif = plot_samples - y_len
-            if len_dif > 0:
-                y_points = [list(itertools.chain((np.nan for _ in range(len_dif)), y)) for y in y_points]
-                # This way we can accept any iterable as y
+            x, y_points = data_slicer(plot_samples, x, y_points)
+            # This way we can accept any iterable as y
             for line, y in zip(self.live_plot[plot_num], y_points):
                 line.set_ydata(y)
 
