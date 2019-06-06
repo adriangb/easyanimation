@@ -1,14 +1,6 @@
 # Set backend
 import matplotlib
 
-try:
-    # Switch graphics backend to TkAgg to be able to function in IPython
-    matplotlib.use('TkAgg')
-except:
-    print("Unable to load TkAgg.")
-    print("If using Spyder: Please to go to Tools > Preferences > IPython Console > Graphics and change Backend to \"Tkinter\"")
-    raise
-
 # Imports
 import numpy as np
 from matplotlib import animation
@@ -16,7 +8,7 @@ from matplotlib import pyplot as plt
 import itertools
 import time
 
-from src.data_slicer import data_slicer
+from .data_slicer import data_slicer
 
 
 class AnimatedFigure:
@@ -57,6 +49,16 @@ class AnimatedFigure:
                 new_line = np.zeros(plot_samples)
                 sublist.append(new_line)
             initial_plot_data.append(sublist)
+        # Switch backends
+        try:
+            self.original_backend = matplotlib.get_backend()
+            # Switch graphics backend to TkAgg to be able to function in IPython
+            matplotlib.use('TkAgg')
+        except:
+            print("Unable to load TkAgg.")
+            print("If using Spyder: Please to go to Tools > Preferences > IPython Console > Graphics and change Backend to \"Tkinter\"")
+            raise
+
         self.fig = plt.figure()
         self.axes = self.fig.subplots(1, self.num_plots, squeeze=False)[0]
         self.fig.canvas.mpl_connect('close_event', self.stop)
@@ -104,10 +106,7 @@ class AnimatedFigure:
         old_ymin, old_ymax = ax.get_ylim()
         new_min_lim, new_max_lim = self._calc_y_labels(y_points)
         if not ((.85 < old_ymax / new_max_lim < 1.15) and (.85 < old_ymin / new_min_lim < 1.15)):
-            new_labels = [float(f'{num:1.1}') for num in
-                          np.linspace(new_min_lim, new_max_lim, len(ax.get_yticks()))]
             ax.set_ylim(bottom=new_min_lim, top=new_max_lim)
-            ax.set_yticks(new_labels)
             return True
         return False
 
@@ -154,10 +153,10 @@ class AnimatedFigure:
             for line, y in zip(self.live_plot[plot_num], y_points):
                 line.set_ydata(y)
 
-            if idx % (plot_samples / 2) == 0 and idx > 10:
+            if idx % (plot_samples / 2) == 0 and idx > 5:
                 # Only check every couple frames for speed
                 # Labels will not update properly on the first couple frames, skip them
-                if self._update_x_labels(ax, x, plot_samples) or self._update_y_labels(ax, y_points):
+                if self._update_y_labels(ax, y_points) or self._update_x_labels(ax, x, plot_samples):
                     redraw = True
         if redraw:
             self.fig.canvas.draw_idle()
@@ -192,17 +191,8 @@ class AnimatedFigure:
         if self.ani:
             if self.ani.event_source:
                 self.ani.event_source.stop()
-        try:
-            import IPython
-            shell = IPython.get_ipython()
-            shell.enable_matplotlib(gui='inline')
-            print("Unable to reset graphics backend")
-        except (ModuleNotFoundError, ImportError):
-            pass
-            # In this case, this was probably not run in IPython
-        finally:
-            plt.close(self.fig)
-        return
+        matplotlib.use(self.original_backend)
+        plt.close(self.fig)
 
     def exception_handler(self, exc, val, tb):
         """
